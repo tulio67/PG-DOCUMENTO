@@ -1,35 +1,69 @@
 name: Build DOCX from Markdown
 
 on:
+  # Permite ejecutarlo manualmente desde Actions y elegir rama/archivo
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch o tag desde donde construir'
+        required: true
+        default: 'main'
+      file_path:
+        description: 'Ruta del archivo Markdown a convertir'
+        required: true
+        default: 'DOC_UNIFICADO_2025_CORREGIDO.md'
+  # También se ejecuta automáticamente en main cuando cambian estos archivos
   push:
     branches:
-      - correcciones/pg-2024
+      - main
     paths:
       - 'DOC_UNIFICADO_2025_CORREGIDO.md'
       - '.github/workflows/build-docx.yml'
-  workflow_dispatch:
 
 jobs:
   build-docx:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout (rama seleccionada o main)
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || 'main' }}
 
-      - name: Install Pandoc
+      - name: Debug — listar archivos
+        run: |
+          echo "Rama actual:"
+          git rev-parse --abbrev-ref HEAD
+          echo "Listado raíz:"
+          ls -la
+          echo "MD encontrados:"
+          find . -maxdepth 3 -type f -name "*.md" -print
+
+      - name: Validar archivo a convertir
+        id: validate
+        run: |
+          FILE="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.file_path || 'DOC_UNIFICADO_2025_CORREGIDO.md' }}"
+          echo "Usando archivo: $FILE"
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: No se encontró '$FILE' en esta rama."
+            echo "Revisa el paso de Debug para ver rutas disponibles o corrige 'file_path'."
+            exit 1
+          fi
+          echo "file=$FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Instalar Pandoc
         run: |
           sudo apt-get update
           sudo apt-get install -y pandoc
 
-      - name: Convert Markdown to DOCX
+      - name: Convertir Markdown a DOCX
         run: |
-          pandoc "DOC_UNIFICADO_2025_CORREGIDO.md" \
+          pandoc "${{ steps.validate.outputs.file }}" \
             --from=gfm \
             --toc \
             --metadata=title:"Prototipo de plataforma web con IA" \
             -o "DOC_UNIFICADO_2025_CORREGIDO.docx"
 
-      - name: Upload DOCX artifact
+      - name: Subir artefacto DOCX
         uses: actions/upload-artifact@v4
         with:
           name: DOC_UNIFICADO_2025_CORREGIDO.docx
