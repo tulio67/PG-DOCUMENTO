@@ -1,0 +1,36 @@
+name: Build DOCX from Markdown
+
+on:
+  push:
+    branches:
+      - correcciones/pg-2024
+    paths:
+      - 'DOC_UNIFICADO_2025_CORREGIDO.md'
+      - '.github/workflows/build-docx.yml'
+  workflow_dispatch:
+
+jobs:
+  build-docx:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Pandoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+
+      - name: Convert Markdown to DOCX
+        run: |
+          pandoc "DOC_UNIFICADO_2025_CORREGIDO.md" \
+            --from=gfm \
+            --toc \
+            --metadata=title:"Prototipo de plataforma web con IA" \
+            -o "DOC_UNIFICADO_2025_CORREGIDO.docx"
+
+      - name: Upload DOCX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DOC_UNIFICADO_2025_CORREGIDO.docx
+          path: DOC_UNIFICADO_2025_CORREGIDO.docx
